@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package pb;
+
+message Request {
+    int64 id = 1;
+    string message = 2;
+    float sleep_seconds = 3;
+}
+
+message Response {
+    int64 id = 1;
+    string message = 2;
+}
+
+service Echoer {
+    rpc Echo(Request) returns (Response) {}
+}
