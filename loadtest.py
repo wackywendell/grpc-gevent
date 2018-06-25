@@ -32,14 +32,18 @@ def request(client, id, msg, sleep_secs):
     resp = client.Echo(req)
     return resp
 
-def multi_requester(client, id, sleep_time_func, count=10):
-    requests = [
-        (id+n, "rid-%d" % n, sleep_time_func())
+def multi_requester(ports, id, sleep_time_func, count=10):
+    requests = (
+        (id+n, random.choice(ports), "rid-%d" % n, sleep_time_func())
         for n in range(count)
-    ]
+    )
 
     def request_map(values):
-        (i, m, s) = values
+        (i, p, m, s) = values
+
+        channel = grpc.insecure_channel('localhost:%d' % p)
+        client = echoserver_grpc.EchoerStub(channel)
+
         try:
             return request(client, i, m, s)
         except Exception as e:
@@ -52,36 +56,43 @@ def multi_requester(client, id, sleep_time_func, count=10):
     return list(mapped)
 
 
+def comma_separated_ints(s):
+    return [int(p) for p in s.split(',')]
+
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-p', '--port', type=int, default=12345)
+    parser.add_argument('-p', '--ports', type=comma_separated_ints, default=comma_separated_ints('12345'))
     parser.add_argument('-n', dest='request_count', type=int, default=1000)
-    parser.add_argument('-t', '--sleep-time', dest='sleep_time', type=float, default=2.0)
+    parser.add_argument('-t', '--sleep-time', dest='sleep_time', type=float, default=10.0)
     parser.add_argument('-b', '--branch-count', dest='branch_count', type=int, default=10)
 
     args = parser.parse_args()
 
-    channel = grpc.insecure_channel('localhost:%d' % args.port)
-    client = echoserver_grpc.EchoerStub(channel)
 
     start = datetime.now()
     pool = gevent.pool.Pool()
 
     per_branch = args.request_count // args.branch_count
-    def multi_request_map(id):
-        t_func = lambda: random.randrange(args.sleep_time)
-        return id, multi_requester(client, id, t_func, count=per_branch)
+    def multi_request_map(vs):
+        id, sleep_time = vs
+        t_func = lambda: random.randrange(sleep_time)
+        return id, multi_requester(args.ports, id, t_func, count=per_branch)
 
-    ids = [n*10*per_branch for n in range(args.branch_count)]
+    while True:
 
-    mapped = pool.imap_unordered(multi_request_map, ids)
+        vals = (
+            (n*10*per_branch, args.sleep_time*(args.branch_count - n + 1)/args.branch_count)
+            for n in range(args.branch_count)
+        )
 
-    try:
-        for i, mr in mapped:
-            log(i, "Returned")
-    except Exception as e:
-        print("Exception while running:", e)
+        mapped = pool.imap_unordered(multi_request_map, vals)
+
+        try:
+            for i, mr in mapped:
+                log(i, "Returned")
+        except Exception as e:
+            print("Exception while running:", e)
 
     end = datetime.now()
     print("Finished in", end - start)
