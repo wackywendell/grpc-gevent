@@ -27,7 +27,7 @@ func (s *Echoer) Echo(ctx context.Context, req *pb.Request) (*pb.Response, error
 
 	n := atomic.AddInt64(&s.count, 1) - 1
 
-	log.Printf("Received %d message %d: %s", n, req.Id, req.Message)
+	log.Printf("Received %d message %d (%fs): %s", n, req.Id, req.SleepSeconds, req.Message)
 	time.Sleep(time.Duration(req.SleepSeconds*1000) * time.Millisecond)
 
 	if req.Id < 0 {
@@ -40,7 +40,7 @@ func (s *Echoer) Echo(ctx context.Context, req *pb.Request) (*pb.Response, error
 		Message: req.Message,
 	}
 
-	log.Printf("Finished %d message %d: %s", n, req.Id, req.Message)
+	log.Printf("Finished %d message %d (%fs): %s", n, req.Id, req.SleepSeconds, req.Message)
 	return rsp, nil
 }
 
