@@ -35,3 +35,35 @@ Finished in 0:00:10.016921
 ```
 
 Note that `python client.py plain` will attempt to use gevent with grpc and just be synchronous (taking >50 s), whereas the default `python client.py` uses the gevent threadpool to actually do concurrent grpc requests and finishes in ~10 seconds.
+
+## Load testing
+
+To run a load test:
+
+In one terminal:
+
+```bash
+$ go run server.go -port 12340
+```
+
+In another terminal:
+
+```bash
+$ loadtest.py -p 12340 -n 10 -b 10
+```
+
+You should see an error that looks something like this:
+
+```raw
+Traceback (most recent call last):
+  File "grpc-gevent/lib/python2.7/site-packages/gevent/event.py", line 219, in wait
+    return self._wait(timeout)
+  File "grpc-gevent/lib/python2.7/site-packages/gevent/event.py", line 129, in _wait
+    gotit = self._wait_core(timeout)
+  File "grpc-gevent/lib/python2.7/site-packages/gevent/event.py", line 106, in _wait_core
+    result = self.hub.switch()
+  File "grpc-gevent/lib/python2.7/site-packages/gevent/hub.py", line 630, in switch
+    return RawGreenlet.switch(self)
+greenlet.GreenletExit
+Exception greenlet.GreenletExit: GreenletExit() in 'grpc._cython.cygrpc.run_loop' ignored
+```
