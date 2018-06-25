@@ -1,7 +1,10 @@
 from __future__ import print_function
 
 import gevent.monkey
-gevent.monkey.patch_all(thread=False)
+gevent.monkey.patch_all()
+
+import grpc._cython.cygrpc
+grpc._cython.cygrpc.init_grpc_gevent()
 
 import argparse
 from datetime import datetime
