@@ -11,6 +11,7 @@ import (
 	"github.com/wackywendell/grpc-gevent/pb"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 var port = flag.Int("port", 12345, "The server port")
@@ -28,6 +29,11 @@ func (s *Echoer) Echo(ctx context.Context, req *pb.Request) (*pb.Response, error
 
 	log.Printf("Received %d message %d: %s", n, req.Id, req.Message)
 	time.Sleep(time.Duration(req.SleepSeconds*1000) * time.Millisecond)
+
+	if req.Id < 0 {
+		log.Printf("Erroring %d message %d: %s", n, req.Id, req.Message)
+		return nil, grpc.Errorf(codes.InvalidArgument, "ID < 0")
+	}
 
 	rsp := &pb.Response{
 		Id:      req.Id,
