@@ -53,6 +53,8 @@ Exception while running: 'NoneType' object has no attribute 'id'
 Finished in 0:00:03.006112
 ```
 
+Note that the calls are not canceled and run to completion on both the Go server and Python client.
+
 ## With threading
 
 You can also run `python client.py thread` and see a different error:
@@ -78,8 +80,8 @@ greenlet.error: cannot switch to a different thread2018-06-26 12:31:10.975160 [ 
 [...]
 ```
 
-Locally, this causes ~20k log lines.
+Locally, this causes ~20k log lines, and the go server receives no requests.
 
 ## Running with `--safe`
 
-Using `python client.py --safe` uses slightly different code around the timeout to wrap around the entire pool instead of individual tasks. Note that this is effective for `python client.py --safe plain` - it runs asynchronously, times out correctly, and cancels the grpc calls correctly - but `python client.py --safe thread` suffers the same problems as before, with ~20k log lines and errors as above.
+Using `python client.py --safe` uses slightly different code around the timeout to wrap around the entire pool instead of individual tasks. Note that this is effective for `python client.py --safe` - it runs asynchronously, times out correctly, and cancels the grpc calls correctly on both the server and client - but `python client.py --safe thread` suffers the same problems as before, with ~20k log lines, errors as above, and no requests received on the server.
