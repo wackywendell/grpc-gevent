@@ -35,6 +35,11 @@ func (s *Echoer) Echo(ctx context.Context, req *pb.Request) (*pb.Response, error
 		return nil, grpc.Errorf(codes.InvalidArgument, "ID < 0")
 	}
 
+	err := ctx.Err()
+	if err != nil {
+		return nil, err
+	}
+
 	rsp := &pb.Response{
 		Id:      req.Id,
 		Message: req.Message,

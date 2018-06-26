@@ -18,6 +18,7 @@ import pb.echoserver_pb2_grpc as echoserver_grpc
 import grpc
 import gevent.pool
 import gevent.queue
+import gevent.timeout
 
 
 def log(id, msg, *args):
@@ -67,7 +68,6 @@ class Parallelized(object):
     def safe_iter(self):
         # We run the function, and either get the value or the exception raised.
         # We put a flag is_ok in the flag to denote which it is.
-        queue = gevent.queue.Queue()
         if self.max_size is None:
             pool = self._gevent_pool = gevent.pool.Group()
         else:
@@ -76,12 +76,16 @@ class Parallelized(object):
         def spawn_func(item):
             try:
                 value = self.func(item)
+                print("Returning value")
                 return (True, value)
-            except Exception:
+            except:
                 exc_info = sys.exc_info()
+                print("Returning error", exc_info[0])
                 return (False, exc_info)
 
-        return pool.imap_unordered(spawn_func, self.iterable)
+        with gevent.Timeout(self.timeout):
+            for r in pool.imap_unordered(spawn_func, self.iterable):
+                yield r
 
     def kill(self):
         if self._gevent_pool is not None:
@@ -102,7 +106,7 @@ class Requester(object):
         """
         Each request blocks gevent in normal operation.
         """
-        if random.random() < 0.01:
+        if random.random() < 0.1:
             # cause a grpc error
             id=-id
 
@@ -127,11 +131,15 @@ class Requester(object):
 
         p = Parallelized(request_map, requests,
             timeout=self.timeout, sleep_between=self.sleep_between)
+        try:
+            vals = []
+            for val in p:
+                vals.append(val)
+            return vals
+        except gevent.Timeout:
+            print("Timed out, stopping batch.")
+            raise
 
-        vals = []
-        for val in p:
-            vals.append(val)
-        return vals
 
 
 
@@ -158,7 +166,7 @@ def main():
 
         gevent.sleep(random.random() * args.sleep_between)
         requester = Requester(args.ports, id, sleep_time, args.sleep_between,
-            timeout=None)
+            timeout=1)
         return id, requester.batch(id, count=args.request_count)
 
     vals = (
@@ -166,14 +174,18 @@ def main():
         for n in range(args.branch_count)
     )
 
-    p = Parallelized(multi_request_map, vals, timeout=args.batch_timeout)
+    p = Parallelized(multi_request_map, vals, timeout=2)
 
-    for is_ok, val in p.safe_iter():
-        if not is_ok:
-            log(0, "Err returned: %s", val)
-            continue
-        i, mr = val
-        log(i, "Returned %d", len(mr))
+    try:
+        for is_ok, val in p.safe_iter():
+            if not is_ok:
+                log(0, "Err returned: %s", val[0])
+                continue
+            i, mr = val
+            print(i, mr)
+            log(i, "Returned %d", len(mr))
+    except gevent.Timeout:
+        print("Timed out, exiting.")
 
     end = datetime.now()
     print("Finished in", end - start)
