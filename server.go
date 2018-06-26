@@ -34,6 +34,12 @@ func (s *Echoer) Echo(ctx context.Context, req *pb.Request) (*pb.Response, error
 		Message: req.Message,
 	}
 
+	err := ctx.Err()
+	if err != nil {
+		log.Printf("Context err %d message %d: %s, err: %s", n, req.Id, req.Message, err)
+		return nil, err
+	}
+
 	log.Printf("Finished %d message %d: %s", n, req.Id, req.Message)
 	return rsp, nil
 }
