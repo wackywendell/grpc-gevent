@@ -76,36 +76,12 @@ class Parallelized(object):
         def spawn_func(item):
             try:
                 value = self.func(item)
-                queue.put((True, value))
+                return (True, value)
             except Exception:
                 exc_info = sys.exc_info()
-                queue.put((False, exc_info))
+                return (False, exc_info)
 
-        greenlets = []
-        for a in self.iterable:
-            greenlets.append(pool.spawn(spawn_func, a))
-            gevent.sleep(random.random() * self.sleep_between)
-        n = len(greenlets)
-
-        start_time = time.time()
-        try:
-            for i in range(n):
-                # compute time remaining if total_timeout is defined
-                timeout = self.timeout
-
-                try:
-                    yield queue.get(timeout=timeout)
-                except gevent.queue.Empty:
-                    raise TimeoutException("Thread %d / %d timed out." % (i, n))
-        finally:
-            # if we get quit early, kill any remaining greenlets
-            # NOTE: this can lead to a grpc error:
-            #     Exception greenlet.GreenletExit: GreenletExit() in 'grpc._cython.cygrpc.run_loop' ignored
-            pool.kill()
-
-        # This should do nothing, but if there were any loose threads to tie up, its time to tie
-        # them up
-        pool.join()
+        return pool.imap_unordered(spawn_func, self.iterable)
 
     def kill(self):
         if self._gevent_pool is not None:
