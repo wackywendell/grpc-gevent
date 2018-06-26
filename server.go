@@ -27,17 +27,17 @@ func (s *Echoer) Echo(ctx context.Context, req *pb.Request) (*pb.Response, error
 	n := atomic.AddInt64(&s.count, 1) - 1
 
 	log.Printf("Received %d message %d: %s", n, req.Id, req.Message)
-	time.Sleep(time.Duration(req.SleepSeconds*1000) * time.Millisecond)
+	select {
+	case <-ctx.Done():
+		err := ctx.Err()
+		log.Printf("Context done %d message %d: %s, err: %s", n, req.Id, req.Message, err)
+		return nil, err
+	case <-time.After(time.Duration(req.SleepSeconds*1000) * time.Millisecond):
+	}
 
 	rsp := &pb.Response{
 		Id:      req.Id,
 		Message: req.Message,
-	}
-
-	err := ctx.Err()
-	if err != nil {
-		log.Printf("Context err %d message %d: %s, err: %s", n, req.Id, req.Message, err)
-		return nil, err
 	}
 
 	log.Printf("Finished %d message %d: %s", n, req.Id, req.Message)
