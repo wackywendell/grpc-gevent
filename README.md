@@ -1,6 +1,9 @@
 ## Description
 
-This is a minimal example demonstrating an issue with the current grpc experimental support and timeouts.
+This is a minimal example demonstrating an issue with the current grpc
+experimental support and timeouts.
+
+See [grpc/grpc#15880](https://github.com/grpc/grpc/issues/15880) for more details.
 
 ## Setup
 
